@@ -1,0 +1,12 @@
+<struts-config>
+    <action-mappings>
+        <action path="/hello" 
+                type="com.opensymphony.xwork2.ActionSupport" 
+                name="helloForm" 
+                scope="request" 
+                validate="false">
+            <forward name="success" path="/hello.jsp"/>
+            <forward name="error" path="/index.jsp"/>
+            </action>
+        </action-mappings>
+</struts-config>

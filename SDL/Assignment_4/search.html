@@ -1,0 +1,31 @@
+<?php session_start(); ?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search Employee</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .result { margin-top: 10px; font-size: 18px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<h2>Search Employee</h2>
+<form method="post" action="process.php">
+    <label for="name">Enter Employee Name:</label>
+    <input type="text" id="name" name="name" required>
+    <button type="submit">Search</button>
+</form>
+
+<!-- Display search result -->
+<div id="result" class="result">
+    <?php
+    if (isset($_SESSION["searchResult"])) {
+        echo $_SESSION["searchResult"];
+        unset($_SESSION["searchResult"]); // Clear session after displaying result
+    }
+    ?>
+</div>
+
+</body>
+</html>

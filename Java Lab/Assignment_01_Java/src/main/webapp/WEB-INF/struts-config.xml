@@ -1,0 +1,14 @@
+<struts-config>
+    <action-mappings>
+        <action path="/login" 
+                type="com.opensymphony.xwork2.ActionSupport" 
+                name="helloForm" 
+                scope="request" 
+                validate="false">
+            <forward name="success" path="/hello.jsp"/>
+            <forward name="error" path="/index.jsp"/>
+            <forward name="login" path="/login.jsp"/>
+            <forward name="register" path="/register.jsp"/>
+            </action>
+        </action-mappings>
+</struts-config>
