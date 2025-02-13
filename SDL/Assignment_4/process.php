@@ -17,7 +17,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $_SESSION["searchResult"] = "<p style='color: red; font-weight: bold;'>$searchName does not exist in the array.</p>";
     }
 
-    header("Location: index.php"); // Redirect back to main page
+    header("Location: process.php"); // Redirect back to main page
     exit();
 }
 ?>
