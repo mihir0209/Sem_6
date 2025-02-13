@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volume Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 350px;
+        }
+
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+        }
+
+        table {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        td {
+            padding: 8px;
+            font-size: 16px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .radio-group {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+        }
+
+        input[type="radio"] {
+            margin-right: 5px;
+        }
+
+        .submit-btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .submit-btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Calculate Volume</h2>
+    <form action="Assign5.php" method="get">
+        <h3>For Cone & Cylinder</h3>
+        <table>
+            <tr>
+                <td>Enter Radius:</td>
+                <td><input type="text" name="r" required></td>
+            </tr>
+            <tr>
+                <td>Enter Height:</td>
+                <td><input type="text" name="h" required></td>
+            </tr>
+        </table>
+        <div class="radio-group">
+            <label><input type="radio" name="op" value="1" required> Cone</label>
+            <label><input type="radio" name="op" value="2"> Cylinder</label>
+        </div>
+
+        <h3>For Sphere</h3>
+        <table>
+            <tr>
+                <td>Enter Radius:</td>
+                <td><input type="text" name="r1"></td>
+            </tr>
+        </table>
+        <div class="radio-group">
+            <label><input type="radio" name="op" value="3"> Sphere</label>
+        </div>
+
+        <button type="submit" class="submit-btn">Calculate</button>
+    </form>
+</div>
+
+</body>
+</html>
