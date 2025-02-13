@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <string.h>
+
 void copy_file(const char *source, const char *destination) {
     FILE *src = fopen(source, "r");
     if (!src) {
@@ -25,6 +26,7 @@ void copy_file(const char *source, const char *destination) {
     fclose(dest);
     printf("File copied successfully.\n");
 }
+
 void grep_in_file(const char *filename, const char *search_term) {
     FILE *file = fopen(filename, "r");
     if (!file) {
@@ -39,6 +41,7 @@ void grep_in_file(const char *filename, const char *search_term) {
     }
     fclose(file);
 }
+
 int main(int argc, char *argv[]) {
     if (argc < 3) {
         fprintf(stderr, "Usage: %s <command> <args>\n", argv[0]);
@@ -49,6 +52,7 @@ int main(int argc, char *argv[]) {
         perror("Fork failed");
         exit(EXIT_FAILURE);
     } else if (pid == 0) {
+        // Child process
         printf("Child Process: PID = %d\n", getpid());
         if (strcmp(argv[1], "cp") == 0 && argc == 4) {
             copy_file(argv[2], argv[3]);
@@ -59,6 +63,7 @@ int main(int argc, char *argv[]) {
         }
         exit(EXIT_SUCCESS);
     } else {
+        // Parent process
         printf("Parent Process: PID = %d, waiting for child to finish...\n", getpid());
         wait(NULL);
         printf("Child process finished execution.\n");
