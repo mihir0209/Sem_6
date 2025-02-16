@@ -5,7 +5,7 @@ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 xsi:noNamespaceSchemaLocation="shiporder.xsd">
   <orderperson>ABCD1</orderperson>
   <shipto>
-    <name>ABCD</name>
+    <name>ABCD</name> 
     <address>sdfsdf</address>
     <city>Pune</city>
     <country>India</country>
@@ -15,7 +15,6 @@ xsi:noNamespaceSchemaLocation="shiporder.xsd">
     <note>Special Edition</note>
     <quantity>1</quantity>
     <price>24555.77</price>
-	
   </item>
   <item>
     <title>Car</title>

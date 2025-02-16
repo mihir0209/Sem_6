@@ -1,12 +1,13 @@
-<struts-config>
-    <action-mappings>
-        <action path="/hello" 
-                type="com.opensymphony.xwork2.ActionSupport" 
-                name="helloForm" 
-                scope="request" 
-                validate="false">
-            <forward name="success" path="/hello.jsp"/>
-            <forward name="error" path="/index.jsp"/>
-            </action>
-        </action-mappings>
-</struts-config>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE struts PUBLIC
+    "-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+    "http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<struts>
+    <package name="default" extends="struts-default">
+        <action name="hello" class="com.example.action.HelloAction">
+            <result name="success">/hello.jsp</result>
+            <result name="error">/index.jsp</result>
+        </action>
+    </package>
+</struts>
