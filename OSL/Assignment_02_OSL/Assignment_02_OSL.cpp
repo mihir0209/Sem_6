@@ -19,6 +19,7 @@ void priority_non_preemptive(int n);
 void priority_preemptive(int n, int* gantt_chart);
 void ganttrr(int n);
 void fcfs(int n);
+void sjf_preemptive(int n);
 void gantt_sjf(int n);
 void gantt_priority_preemptive(int n, int* gantt_chart);
 int main() {
@@ -26,42 +27,46 @@ int main() {
     cout << "Choose Scheduling Algorithm: \n";
     cout << "1. FCFS\n";
     cout << "2. SJF (Non-Preemptive)\n";
-    cout << "3. Preemptive Priority Scheduling\n";
-    cout << "4. Non-Preemptive Priority Scheduling\n";
-    cout << "5. Round Robin\n";
+    cout << "3. SJF (Preemptive - SRTF)\n";
+    cout << "4. Preemptive Priority Scheduling\n";
+    cout << "5. Non-Preemptive Priority Scheduling\n";
+    cout << "6. Round Robin\n";
     cin >> ch;
     n = accept(ch);
     switch (ch) {
-        case 1:
-            fcfs(n);
-            break;
-        case 2:
-            sjf_non_preemptive(n);
-            break;
-        case 3: {
-            int gantt_chart[100] = {0};
-            priority_preemptive(n, gantt_chart);
-            turnwait(n);
-            display(n);
-            gantt_priority_preemptive(n, gantt_chart);
-            break;
-        }
-        case 4:
-            priority_non_preemptive(n);
-            break;
-        case 5:
-            ganttrr(n);
-            break;
-        default:
-            cout << "Invalid choice!" << endl;
-            exit(1);
+    case 1:
+    fcfs(n);
+    break;
+    case 2:
+    sjf_non_preemptive(n);
+    break;
+    case 3:
+    sjf_preemptive(n);
+    break;
+    case 4: {
+    int gantt_chart[100] = {0};
+    priority_preemptive(n, gantt_chart);
+    turnwait(n);
+    display(n);
+    gantt_priority_preemptive(n, gantt_chart);
+    break;
     }
-    if (ch != 3) {
-        turnwait(n);
-        display(n);
+    case 5:
+    priority_non_preemptive(n);
+    break;
+    case 6:
+    ganttrr(n);
+    break;
+    default:
+    cout << "Invalid choice!" << endl;
+    exit(1);
+    }
+    if (ch != 4) {
+    turnwait(n);
+    display(n);
     }
     return 0;
-}
+    }
 int accept(int ch) {
     int i, n;
     cout << "Enter the Total Number of Processes: ";
@@ -138,6 +143,38 @@ void gantt_fcfs(int n) {
     }
     cout << endl;
 }
+void sjf_preemptive(int n) {
+    int completed = 0, current_time = 0;
+    int current_process = -1;
+    bool is_completed[10] = {false};
+    while (completed < n) {
+    int shortest_time = 9999, next_process = -1;
+    for (int i = 1; i <= n; i++) {
+    if (!is_completed[i] && p[i].at <= current_time
+    && p[i].remaining_bt < shortest_time &&
+    p[i].remaining_bt > 0) {
+    shortest_time = p[i].remaining_bt;
+    next_process = i;
+    }
+    }
+    if (next_process != -1) {
+    if (current_process != next_process) {
+    current_process = next_process;
+    }
+    p[current_process].remaining_bt--;
+    current_time++;
+    if (p[current_process].remaining_bt == 0) {
+    p[current_process].completion_time =
+    current_time;
+    is_completed[current_process] = true;
+    completed++;
+    current_process = -1;
+    }
+    } else {
+    current_time++;
+    }
+    }
+    }
 void sjf_non_preemptive(int n) {
     int completed = 0, current_time = 0, smallest;
     bool is_completed[10] = {false};
