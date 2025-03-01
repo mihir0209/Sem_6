@@ -5,7 +5,7 @@ delivery_method :smtp, {
 :address => 'smtp.gmail.com',
 :port => 587,
 :user_name => 'ritasdeva81@gmail.com',
-:password => 'bmlo vjbg dsld utaj',
+:password => 'bmlo vjbg dsld utaj', #I've already deleted my password from Google account...😂
 :authentication => :login,
 :enable_starttls_auto => true
 }
