@@ -199,9 +199,34 @@ int main() {
     printf("Enter the direction for SCAN and C-SCAN (l for left, r for right): ");
     scanf(" %c", &direction);
     printf("Disk Size: %d\n",disk_size);
-    fcfs(requests, n, head);
-    sstf(requests, n, head);
-    scan(requests, n, head, disk_size, direction);
-    c_scan(requests, n, head, disk_size, direction);
+    while(1)
+    {
+        printf("Menu: \n1. FCFS\n2. SSTF\n3. SCAN\n4. C-SCAN\n5. Exit\nEnter your choice: ");
+        int ch;
+        scanf("%d",&ch);
+        switch(ch)  
+        {
+            case 1: 
+                fcfs(requests, n, head);
+                break; 
+            case 2:
+                sstf(requests, n, head);
+                break;
+            case 3: 
+                scan(requests, n, head, disk_size, direction);
+                break;
+            case 4:
+                c_scan(requests, n, head, disk_size, direction);
+                break;
+            case 5:
+                return 0;
+            default:
+                printf("Enter a known choice you fool.\n");
+        }
+    }
+    
+    
+    
+    
     return 0;
 }
