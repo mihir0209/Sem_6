@@ -1,232 +1,158 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+
 int abs_diff(int a, int b) {
-    return abs(a - b);
+    return a > b ? a - b : b - a;
 }
-void fcfs(int requests[], int n, int head) {
-    int total_movement = 0;
-    int current_position = head;
+
+void fcfs(int req[], int n, int head) {
+    int total = 0;
     printf("FCFS Seek Sequence: %d ", head);
     for (int i = 0; i < n; i++) {
-        total_movement += abs_diff(requests[i], current_position);
-        current_position = requests[i];
-        printf("%d ", requests[i]);
+        total += abs_diff(head, req[i]);
+        head = req[i];
+        printf("%d ", head);
     }
-    printf("\nFCFS Total Head Movement: %d\n", total_movement);
+    printf("\nTotal Head Movement: %d\n", total);
 }
-void sstf(int requests[], int n, int head) {
-    int total_movement = 0;
-    int current_position = head;
+
+void sstf(int req[], int n, int head) {
+    int total = 0, done = 0, min_idx, min_dist;
     bool visited[n];
-    for (int i = 0; i < n; i++) {
-        visited[i] = false;
-    }
+    for (int i = 0; i < n; i++) visited[i] = false;
+
     printf("SSTF Seek Sequence: %d ", head);
-    for (int i = 0; i < n; i++) {
-        int min_diff = 99999;
-        int next_request = -1;
-        for (int j = 0; j < n; j++) {
-            if (!visited[j]) {
-                int diff = abs_diff(requests[j], current_position);
-                if (diff < min_diff) {
-                    min_diff = diff;
-                    next_request = j;
-                }
+    while (done < n) {
+        min_dist = 1e9;
+        for (int i = 0; i < n; i++) {
+            if (!visited[i] && abs_diff(head, req[i]) < min_dist) {
+                min_dist = abs_diff(head, req[i]);
+                min_idx = i;
             }
         }
-        if (next_request != -1) {
-            total_movement += min_diff;
-            current_position = requests[next_request];
-            visited[next_request] = true;
-            printf("%d ", current_position);
-        }
+        total += min_dist;
+        head = req[min_idx];
+        visited[min_idx] = true;
+        printf("%d ", head);
+        done++;
     }
-    printf("\nSSTF Total Head Movement: %d\n", total_movement);
+    printf("\nTotal Head Movement: %d\n", total);
 }
-void scan(int requests[], int n, int head, int disk_size, char direction) {
-    int total_movement = 0;
-    int current_position = head;
-    int seek_sequence[n + 2];
-    int seek_count = 0;
-    int left[n], right[n];
-    int left_count = 0, right_count = 0;
-    for (int i = 0; i < n; i++) {
-        if (requests[i] < head) {
-            left[left_count++] = requests[i];
-        } else {
-            right[right_count++] = requests[i];
-        }
-    }
-    for (int i = 0; i < left_count - 1; i++) {
-        for (int j = 0; j < left_count - i - 1; j++) {
-            if (left[j] < left[j + 1]) {
-                int temp = left[j];
-                left[j] = left[j + 1];
-                left[j + 1] = temp;
+
+void sort(int arr[], int n, bool asc) {
+    for (int i = 0; i < n-1; i++)
+        for (int j = 0; j < n-i-1; j++)
+            if ((asc && arr[j] > arr[j+1]) || (!asc && arr[j] < arr[j+1])) {
+                int t = arr[j]; arr[j] = arr[j+1]; arr[j+1] = t;
             }
-        }
-    }
-    for (int i = 0; i < right_count - 1; i++) {
-        for (int j = 0; j < right_count - i - 1; j++) {
-            if (right[j] > right[j + 1]) {
-                int temp = right[j];
-                right[j] = right[j + 1];
-                right[j + 1] = temp;
-            }
-        }
-    }
+}
+
+void scan(int req[], int n, int head, int size, char dir) {
+    int left[n], right[n], lc = 0, rc = 0, total = 0;
+    for (int i = 0; i < n; i++) 
+        if (req[i] < head)
+            left[lc++] = req[i];
+        else
+            right[rc++] = req[i];
+
+
+    sort(left, lc, false); sort(right, rc, true);
     printf("SCAN Seek Sequence: %d ", head);
-    if (direction == 'l') {
-        for (int i = 0; i < left_count; i++) {
-            total_movement += abs_diff(current_position, left[i]);
-            current_position = left[i];
-            printf("%d ", current_position);
-        }
-        total_movement += abs_diff(current_position, 0);
-        current_position = 0;
-        printf("%d ", current_position);
-        for (int i = 0; i < right_count; i++) {
-            total_movement += abs_diff(current_position, right[i]);
-            current_position = right[i];
-            printf("%d ", current_position);
-        }
+    
+    int *first = (dir == 'l') ? left : right, fc = (dir == 'l') ? lc : rc;
+    int *second = (dir == 'l') ? right : left, sc = (dir == 'l') ? rc : lc;
+
+    for (int i = 0; i < fc; i++) {
+        total += abs_diff(head, first[i]);
+        head = first[i];
+        printf("%d ", head);
     }
-    else {
-        for (int i = 0; i < right_count; i++) {
-            total_movement += abs_diff(current_position, right[i]);
-            current_position = right[i];
-            printf("%d ", current_position);
-        }
-        total_movement += abs_diff(current_position, disk_size - 1);
-        current_position = disk_size - 1;
-        printf("%d ", current_position);
-        for (int i = 0; i < left_count; i++) {
-            total_movement += abs_diff(current_position, left[i]);
-            current_position = left[i];
-            printf("%d ", current_position);
-        }
+
+    int end = (dir == 'l') ? 0 : size - 1;
+    total += abs_diff(head, end);
+    head = end;
+    printf("%d ", head);
+
+    for (int i = 0; i < sc; i++) {
+        total += abs_diff(head, second[i]);
+        head = second[i];
+        printf("%d ", head);
     }
-    printf("\nSCAN Total Head Movement: %d\n", total_movement);
+
+    printf("\nTotal Head Movement: %d\n", total);
 }
-void c_scan(int requests[], int n, int head, int disk_size, char direction) {
-    int total_movement = 0;
-    int current_position = head;
-    int seek_sequence[n + 2];
-    int seek_count = 0;
-    int left[n], right[n];
-    int left_count = 0, right_count = 0;
-    for (int i = 0; i < n; i++) {
-        if (requests[i] < head) {
-            left[left_count++] = requests[i];
-        } else {
-            right[right_count++] = requests[i];
-        }
-    }
-    for (int i = 0; i < left_count - 1; i++) {
-        for (int j = 0; j < left_count - i - 1; j++) {
-            if (left[j] < left[j + 1]) {
-                int temp = left[j];
-                left[j] = left[j + 1];
-                left[j + 1] = temp;
-            }
-        }
-    }
-    for (int i = 0; i < right_count - 1; i++) {
-        for (int j = 0; j < right_count - i - 1; j++) {
-            if (right[j] > right[j + 1]) {
-                int temp = right[j];
-                right[j] = right[j + 1];
-                right[j + 1] = temp;
-            }
-        }
-    }
+
+void c_scan(int req[], int n, int head, int size, char dir) {
+    int left[n], right[n], lc = 0, rc = 0, total = 0;
+    for (int i = 0; i < n; i++) 
+        if (req[i] < head)
+            left[lc++] = req[i];
+        else
+            right[rc++] = req[i];
+
+
+    sort(left, lc, false); sort(right, rc, true);
     printf("C-SCAN Seek Sequence: %d ", head);
-    if (direction == 'l') {
-        for (int i = 0; i < left_count; i++) {
-            total_movement += abs_diff(current_position, left[i]);
-            current_position = left[i];
-            printf("%d ", current_position);
+
+    if (dir == 'l') {
+        for (int i = 0; i < lc; i++) {
+            total += abs_diff(head, left[i]);
+            head = left[i];
+            printf("%d ", head);
         }
-        total_movement += abs_diff(current_position, 0);
-        current_position = 0;
-        printf("%d ", current_position);
-        total_movement += abs_diff(current_position, disk_size-1);
-        current_position = disk_size-1;
-        printf("%d ", current_position);
-        current_position = head;
-        for (int i = 0; i < right_count; i++) {
-            total_movement += abs_diff(current_position, right[i]);
-            current_position = right[i];
-            printf("%d ", current_position);
+        total += abs_diff(head, 0) + abs_diff(0, size - 1);
+        head = size - 1;
+        printf("0 %d ", size - 1);
+        for (int i = 0; i < rc; i++) {
+            total += abs_diff(head, right[i]);
+            head = right[i];
+            printf("%d ", head);
         }
-    }
-    else {
-        for (int i = 0; i < right_count; i++) {
-            total_movement += abs_diff(current_position, right[i]);
-            current_position = right[i];
-            printf("%d ", current_position);
+    } else {
+        for (int i = 0; i < rc; i++) {
+            total += abs_diff(head, right[i]);
+            head = right[i];
+            printf("%d ", head);
         }
-        total_movement += abs_diff(current_position, disk_size - 1);
-        current_position = disk_size - 1;
-        printf("%d ", current_position);
-        total_movement += abs_diff(current_position, 0);
-        current_position = 0;
-        printf("%d ", current_position);
-        current_position = head;
-        for (int i = 0; i < left_count; i++) {
-            total_movement += abs_diff(current_position, left[i]);
-            current_position = left[i];
-            printf("%d ", current_position);
+        total += abs_diff(head, size - 1) + abs_diff(0, size - 1);
+        head = 0;
+        printf("%d 0 ", size - 1);
+        for (int i = 0; i < lc; i++) {
+            total += abs_diff(head, left[i]);
+            head = left[i];
+            printf("%d ", head);
         }
     }
-    printf("\nC-SCAN Total Head Movement: %d\n", total_movement);
+
+    printf("\nTotal Head Movement: %d\n", total);
 }
+
 int main() {
-    int n, head, disk_size;
-    char direction;
-    printf("Enter the number of disk I/O requests: ");
+    int n, head, size, choice;
+    char dir;
+    printf("Enter number of requests: ");
     scanf("%d", &n);
-    int requests[n];
-    printf("Enter the disk I/O requests:\n");
-    for (int i = 0; i < n; i++) {
-        scanf("%d", &requests[i]);
-    }
-    printf("Enter the initial head position: ");
+    int req[n];
+    printf("Enter the requests:\n");
+    for (int i = 0; i < n; i++) scanf("%d", &req[i]);
+    printf("Enter initial head position: ");
     scanf("%d", &head);
-    printf("Enter the disk size: ");
-    scanf("%d", &disk_size);
-    printf("Enter the direction for SCAN and C-SCAN (l for left, r for right): ");
-    scanf(" %c", &direction);
-    printf("Disk Size: %d\n",disk_size);
-    while(1)
-    {
-        printf("Menu: \n1. FCFS\n2. SSTF\n3. SCAN\n4. C-SCAN\n5. Exit\nEnter your choice: ");
-        int ch;
-        scanf("%d",&ch);
-        switch(ch)  
-        {
-            case 1: 
-                fcfs(requests, n, head);
-                break; 
-            case 2:
-                sstf(requests, n, head);
-                break;
-            case 3: 
-                scan(requests, n, head, disk_size, direction);
-                break;
-            case 4:
-                c_scan(requests, n, head, disk_size, direction);
-                break;
-            case 5:
-                return 0;
-            default:
-                printf("Enter a known choice you fool.\n");
+    printf("Enter disk size: ");
+    scanf("%d", &size);
+    printf("Direction (l/r) for SCAN and C-SCAN: ");
+    scanf(" %c", &dir);
+
+    while (1) {
+        printf("\nMenu:\n1.FCFS\n2.SSTF\n3.SCAN\n4.C-SCAN\n5.Exit\nChoice: ");
+        scanf("%d", &choice);
+        switch (choice) {
+            case 1: fcfs(req, n, head); break;
+            case 2: sstf(req, n, head); break;
+            case 3: scan(req, n, head, size, dir); break;
+            case 4: c_scan(req, n, head, size, dir); break;
+            case 5: return 0;
+            default: printf("Invalid choice!\n");
         }
     }
-    
-    
-    
-    
-    return 0;
 }

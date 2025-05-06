@@ -1,0 +1,936 @@
+######################################## 1 ################################################
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cstring>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+using namespace std;
+
+void copy_file(const string &source, const string &destination) {
+    ifstream src(source, ios::binary);
+    if (!src.is_open()) {
+        perror("Error opening source file");
+        exit(EXIT_FAILURE);
+    }
+
+    ofstream dest(destination, ios::binary);
+    if (!dest.is_open()) {
+        perror("Error opening destination file");
+        src.close();
+        exit(EXIT_FAILURE);
+    }
+
+    dest << src.rdbuf();
+
+    src.close();
+    dest.close();
+
+    cout << "File copied successfully." << endl;
+}
+
+void grep_in_file(const string &filename, const string &search_term) {
+    ifstream file(filename);
+    if (!file.is_open()) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    string line;
+    while (getline(file, line)) {
+        if (line.find(search_term) != string::npos) {
+            cout << line << endl;
+        }
+    }
+
+    file.close();
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 3) {
+        cerr << "Usage: " << argv[0] << " <command> <args>\n"
+             << " 1. " << argv[0] << " cp source.txt destination.txt\n"
+             << " 2. " << argv[0] << " grep search_text source.txt\n";
+        return EXIT_FAILURE;
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("Fork failed");
+        return EXIT_FAILURE;
+    } else if (pid == 0) {
+        // Child process
+        cout << "Child Process: PID = " << getpid() << endl;
+        if (strcmp(argv[1], "cp") == 0 && argc == 4) {
+            copy_file(argv[2], argv[3]);
+        } else if (strcmp(argv[1], "grep") == 0 && argc == 4) {
+            grep_in_file(argv[3], argv[2]);
+        } else {
+            cerr << "Invalid command or arguments" << endl;
+        }
+        exit(EXIT_SUCCESS);
+    } else {
+        // Parent process
+        cout << "Parent Process: PID = " << getpid() << ", waiting for child to finish..." << endl;
+        wait(nullptr);
+        cout << "Child process finished execution." << endl;
+    }
+
+    return 0;
+}
+
+
+######################################## 2 ################################################
+
+
+#include <iostream>
+#include <cstdio>
+#include <climits>
+#include <queue>
+using namespace std;
+
+struct Process {
+    int id, at, bt, remaining_bt, ct, pr;
+    float wt, tat;
+    bool in_queue;
+};
+
+Process p[10];
+int n, timeq;
+
+void input(int ch) {
+    cout << "Enter number of processes: ";
+    cin >> n;
+    for (int i = 0; i < n; i++) {
+        p[i].id = i + 1;
+        cout << "Arrival Time of P" << p[i].id << ": ";
+        cin >> p[i].at;
+        cout << "Burst Time of P" << p[i].id << ": ";
+        cin >> p[i].bt;
+        p[i].remaining_bt = p[i].bt;
+        p[i].in_queue = false;
+        if (ch == 4 || ch == 5) {
+            cout << "Priority of P" << p[i].id << ": ";
+            cin >> p[i].pr;
+        }
+    }
+    if (ch == 6) {
+        cout << "Enter Time Quantum: ";
+        cin >> timeq;
+    }
+}
+
+void display() {
+    // Sort by PID for display
+    for (int i = 0; i < n-1; i++) {
+        for (int j = 0; j < n-i-1; j++) {
+            if (p[j].id > p[j+1].id) {
+                swap(p[j], p[j+1]);
+            }
+        }
+    }
+
+    float total_tat = 0, total_wt = 0;
+    printf("P\tAT\tBT\tCT\tTAT\tWT\n");
+    for (int i = 0; i < n; i++) {
+        p[i].tat = p[i].ct - p[i].at;
+        p[i].wt = p[i].tat - p[i].bt;
+        total_tat += p[i].tat;
+        total_wt += p[i].wt;
+        printf("P%d\t%d\t%d\t%d\t%.1f\t%.1f\n", 
+              p[i].id, p[i].at, p[i].bt, p[i].ct, p[i].tat, p[i].wt);
+    }
+    printf("Avg TAT = %.2f, Avg WT = %.2f\n", total_tat / n, total_wt / n);
+}
+
+void fcfs() {
+    for (int i = 0; i < n-1; i++) {
+        for (int j = 0; j < n-i-1; j++) {
+            if (p[j].at > p[j+1].at || (p[j].at == p[j+1].at && p[j].id > p[j+1].id)) {
+                swap(p[j], p[j+1]);
+            }
+        }
+    }
+    
+    int t = 0;
+    for (int i = 0; i < n; i++) {
+        if (t < p[i].at) t = p[i].at;
+        p[i].ct = t + p[i].bt;
+        t = p[i].ct;
+    }
+}
+
+void sjf(bool preemptive) {
+    int t = 0, done = 0;
+    bool complete[10] = {false};
+    
+    while (done < n) {
+        int idx = -1;
+        for (int i = 0; i < n; i++) {
+            if (!complete[i] && p[i].at <= t && p[i].remaining_bt > 0) {
+                if (idx == -1 || 
+                    p[i].remaining_bt < p[idx].remaining_bt || 
+                    (p[i].remaining_bt == p[idx].remaining_bt && 
+                     (p[i].at < p[idx].at || (p[i].at == p[idx].at && p[i].id < p[idx].id)))) {
+                    idx = i;
+                }
+            }
+        }
+        
+        if (idx == -1) {
+            t++;
+        } else {
+            if (preemptive) {
+                p[idx].remaining_bt--;
+                t++;
+                if (p[idx].remaining_bt == 0) {
+                    p[idx].ct = t;
+                    complete[idx] = true;
+                    done++;
+                }
+            } else {
+                t += p[idx].bt;
+                p[idx].ct = t;
+                complete[idx] = true;
+                done++;
+            }
+        }
+    }
+}
+
+void priority(bool preemptive) {
+    int t = 0, done = 0;
+    bool complete[10] = {false};
+    
+    while (done < n) {
+        int idx = -1;
+        for (int i = 0; i < n; i++) {
+            if (!complete[i] && p[i].at <= t && p[i].remaining_bt > 0) {
+                if (idx == -1 || 
+                    p[i].pr < p[idx].pr || 
+                    (p[i].pr == p[idx].pr && 
+                     (p[i].at < p[idx].at || (p[i].at == p[idx].at && p[i].id < p[idx].id)))) {
+                    idx = i;
+                }
+            }
+        }
+        
+        if (idx == -1) {
+            t++;
+        } else {
+            if (preemptive) {
+                p[idx].remaining_bt--;
+                t++;
+                if (p[idx].remaining_bt == 0) {
+                    p[idx].ct = t;
+                    complete[idx] = true;
+                    done++;
+                }
+            } else {
+                t += p[idx].bt;
+                p[idx].ct = t;
+                complete[idx] = true;
+                done++;
+            }
+        }
+    }
+}
+
+void round_robin() {
+    // Sort by arrival time first
+    for (int i = 0; i < n-1; i++) {
+        for (int j = 0; j < n-i-1; j++) {
+            if (p[j].at > p[j+1].at) {
+                swap(p[j], p[j+1]);
+            }
+        }
+    }
+
+    queue<int> readyQueue;
+    int currentTime = 0;
+    int completed = 0;
+
+    // Initialize queue with processes arriving at time 0
+    for (int i = 0; i < n; i++) {
+        if (p[i].at <= currentTime) {
+            readyQueue.push(i);
+            p[i].in_queue = true;
+        }
+    }
+
+    while (!readyQueue.empty()) {
+        int idx = readyQueue.front();
+        readyQueue.pop();
+        p[idx].in_queue = false;
+
+        int execTime = min(p[idx].remaining_bt, timeq);
+        currentTime += execTime;
+        p[idx].remaining_bt -= execTime;
+
+        // Add newly arrived processes
+        for (int i = 0; i < n; i++) {
+            if (!p[i].in_queue && p[i].remaining_bt > 0 && p[i].at <= currentTime) {
+                readyQueue.push(i);
+                p[i].in_queue = true;
+            }
+        }
+
+        // Requeue if not completed
+        if (p[idx].remaining_bt > 0) {
+            readyQueue.push(idx);
+            p[idx].in_queue = true;
+        } else {
+            p[idx].ct = currentTime;
+            completed++;
+        }
+
+        // Handle idle time between processes
+        if (readyQueue.empty() && completed < n) {
+            int nextArrival = INT_MAX;
+            for (int i = 0; i < n; i++) {
+                if (p[i].remaining_bt > 0 && p[i].at > currentTime) {
+                    nextArrival = min(nextArrival, p[i].at);
+                }
+            }
+            if (nextArrival != INT_MAX) {
+                currentTime = nextArrival;
+                for (int i = 0; i < n; i++) {
+                    if (p[i].at <= currentTime && !p[i].in_queue && p[i].remaining_bt > 0) {
+                        readyQueue.push(i);
+                        p[i].in_queue = true;
+                    }
+                }
+            }
+        }
+    }
+}
+
+int main() {
+    int ch;
+    cout << "1.FCFS 2.SJF(NP) 3.SJF(P) 4.Priority(P) 5.Priority(NP) 6.RR\nChoice: ";
+    cin >> ch;
+    input(ch);
+    
+    switch (ch) {
+        case 1: fcfs(); break;
+        case 2: sjf(false); break;
+        case 3: sjf(true); break;
+        case 4: priority(true); break;
+        case 5: priority(false); break;
+        case 6: round_robin(); break;
+    }
+    
+    display();
+    return 0;
+}
+
+
+
+######################################## 3 ################################################
+
+#include <iostream>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <cstring>
+#include <cstdlib>
+using namespace std;
+
+int main() {
+    int p1[2], p2[2]; char buffer[100];
+    pipe(p1); pipe(p2);
+    pid_t pid = fork();
+
+    if (pid > 0) { // Parent (Process 1)
+        close(p1[0]); close(p2[1]);
+        while (true) {
+            cout << "Process 1, enter message: ";
+            cin.getline(buffer, sizeof(buffer));
+            write(p1[1], buffer, strlen(buffer) + 1);
+            if (!strncmp(buffer, "exit", 4) || !strncmp(buffer, "stop", 4)) {
+                cout << "Process 1 sent exit command.\n"; break;
+            }
+            read(p2[0], buffer, sizeof(buffer));
+            if (!strncmp(buffer, "exit", 4) || !strncmp(buffer, "stop", 4)) {
+                cout << "Process 1 received exit command.\n"; break;
+            }
+            cout << "Process 1 received: " << buffer << endl;
+        }
+        close(p1[1]); close(p2[0]); wait(nullptr);
+    } else { // Child (Process 2)
+        close(p1[1]); close(p2[0]);
+        while (true) {
+            read(p1[0], buffer, sizeof(buffer));
+            if (!strncmp(buffer, "exit", 4) || !strncmp(buffer, "stop", 4)) {
+                cout << "Process 2 received exit command.\n"; break;
+            }
+            cout << "Process 2 received: " << buffer<<endl;
+            cout << "Process 2, enter message: ";
+            cin.getline(buffer, sizeof(buffer));
+            write(p2[1], buffer, strlen(buffer) + 1);
+            if (!strncmp(buffer, "exit", 4) || !strncmp(buffer, "stop", 4)) {
+                cout << "Process 2 sent exit command.\n"; break;
+            }
+        }
+        close(p1[0]); close(p2[1]); exit(0);
+    }
+    return 0;
+}
+
+
+######################################## 4 ################################################
+
+#include <iostream>
+#include <pthread.h>
+#include <semaphore.h>
+#include <unistd.h>
+#include <cstdlib>
+#include <ctime>
+using namespace std;
+
+#define MAX 50
+
+string sharedData = "Nothing written yet.";
+int readCount = 0;
+sem_t mutex, writeLock;
+
+void* reader(void* arg) {
+    int id = *(int*)arg;
+    while (true) {
+        sleep(rand() % 5 + 1); // Random delay
+
+        sem_wait(&mutex);
+        readCount++;
+        if (readCount == 1) sem_wait(&writeLock);
+        sem_post(&mutex);
+
+        cout << "\n[Reader " << id << "] Reading: " << sharedData << endl;
+
+        sem_wait(&mutex);
+        readCount--;
+        if (readCount == 0) sem_post(&writeLock);
+        sem_post(&mutex);
+    }
+    return nullptr;
+}
+
+void* writer(void* arg) {
+    int id = *(int*)arg;
+    while (true) {
+        sleep(rand() % 5 + 1); // Random delay
+
+        sem_wait(&writeLock);
+        string input;
+        cout << "\n[Writer " << id << "] Enter data to write: ";
+        getline(cin, input); // Manual user input
+        sharedData = "[Writer " + to_string(id) + "] " + input;
+        cout << "[Writer " << id << "] Wrote: " << sharedData << endl;
+        sem_post(&writeLock);
+    }
+    return nullptr;
+}
+
+int main() {
+    srand(time(0));
+    int readers, writers;
+    cout << "Enter number of readers: "; cin >> readers;
+    cout << "Enter number of writers: "; cin >> writers;
+    cin.ignore(); // Clear input buffer for getline
+
+    pthread_t rthreads[MAX], wthreads[MAX];
+    int ids[MAX];
+
+    sem_init(&mutex, 0, 1);
+    sem_init(&writeLock, 0, 1);
+
+    for (int i = 0; i < max(readers, writers); ++i) ids[i] = i + 1;
+    for (int i = 0; i < readers; ++i)
+        pthread_create(&rthreads[i], NULL, reader, &ids[i]);
+    for (int i = 0; i < writers; ++i)
+        pthread_create(&wthreads[i], NULL, writer, &ids[i]);
+
+    for (int i = 0; i < readers; ++i)
+        pthread_join(rthreads[i], NULL);
+    for (int i = 0; i < writers; ++i)
+        pthread_join(wthreads[i], NULL);
+
+    sem_destroy(&mutex);
+    sem_destroy(&writeLock);
+    return 0;
+}
+######################################## 5 ################################################
+
+#include <stdio.h>
+#include <stdbool.h>
+
+int main() {
+    int n, m, count = 0;
+    printf("Processes and resources: ");
+    scanf("%d %d", &n, &m);
+
+    int alloc[n][m], max[n][m], need[n][m], avail[m], work[m], seq[n];
+    bool finish[n];
+
+    printf("Allocation matrix:\n");
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            scanf("%d", &alloc[i][j]);
+
+    printf("Max matrix:\n");
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            scanf("%d", &max[i][j]);
+
+    printf("Available resources:\n");
+    for (int i = 0; i < m; i++) {
+        scanf("%d", &avail[i]);
+        work[i] = avail[i];
+    }
+
+    for (int i = 0; i < n; i++) {
+        finish[i] = false;
+        for (int j = 0; j < m; j++)
+            need[i][j] = max[i][j] - alloc[i][j];
+    }
+
+    while (count < n) {
+        bool found = false;
+        for (int i = 0; i < n; i++) {
+            if (!finish[i]) {
+                bool canRun = true;
+                for (int j = 0; j < m; j++)
+                    if (need[i][j] > work[j]) {
+                        canRun = false;
+                        break;
+                    }
+                if (canRun) {
+                    printf("P%d executes\n", i);
+                    printf("Before: "); for (int k = 0; k < m; k++) printf("%d ", work[k]); printf("\n");
+                    for (int j = 0; j < m; j++) work[j] += alloc[i][j];
+                    printf("After:  "); for (int k = 0; k < m; k++) printf("%d ", work[k]); printf("\n\n");
+                    seq[count++] = i;
+                    finish[i] = true;
+                    found = true;
+                }
+            }
+        }
+        if (!found) return printf("Not safe\n"), 0;
+    }
+
+    printf("Safe sequence: ");
+    for (int i = 0; i < n; i++) printf("P%d ", seq[i]);
+    printf("\n");
+}
+
+
+######################################## 6 ################################################
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+typedef struct Block {
+    int start, size;
+    bool free;
+    struct Block *next;
+} Block;
+
+Block *mem = NULL, *next_fit_ptr = NULL;
+
+Block* create(int size, bool free) {
+    Block *b = malloc(sizeof(Block));
+    b->size = size; b->free = free; b->next = NULL; b->start = 0;
+    return b;
+}
+
+void update(Block *head) {
+    int addr = 0;
+    while (head) {
+        head->start = addr;
+        addr += head->size;
+        head = head->next;
+    }
+}
+
+void show(Block *head) {
+    puts("\nMemory:");
+    for (; head; head = head->next)
+        printf("%d %d %s\n", head->start, head->size, head->free ? "Free" : "Used");
+}
+
+int alloc(Block **head, int size, char mode) {
+    Block *sel = NULL, *cur = *head, *start = NULL;
+    int best = (mode == 'B') ? __INT_MAX__ : -1;
+    bool loop = false;
+
+    if (mode == 'N') start = cur = next_fit_ptr ? next_fit_ptr : *head;
+
+    do {
+        if (cur->free && cur->size >= size) {
+            if (mode == 'F') { sel = cur; break; }
+            if (mode == 'B' && cur->size < best) { sel = cur; best = cur->size; }
+            if (mode == 'W' && cur->size > best) { sel = cur; best = cur->size; }
+            if (mode == 'N') { sel = cur; break; }
+        }
+        cur = (mode == 'N') ? (cur->next ? cur->next : *head) : cur->next;
+        if (mode == 'N' && cur == start) loop = true;
+    } while ((mode != 'N' && cur) || (mode == 'N' && !loop));
+
+    if (!sel) return -1;
+
+    int addr = sel->start;
+    if (sel->size == size) sel->free = false;
+    else {
+        Block *b = create(sel->size - size, true);
+        b->next = sel->next;
+        sel->next = b;
+        sel->size = size;
+        sel->free = false;
+        update(*head);
+    }
+    if (mode == 'N') next_fit_ptr = sel->next ? sel->next : *head;
+    return addr;
+}
+
+bool dealloc(Block **head, int addr) {
+    Block *cur = *head, *prev = NULL;
+    while (cur) {
+        if (cur->start == addr) {
+            cur->free = true;
+            if (cur->next && cur->next->free) {
+                Block *t = cur->next;
+                cur->size += t->size;
+                cur->next = t->next;
+                free(t);
+            }
+            if (prev && prev->free) {
+                prev->size += cur->size;
+                prev->next = cur->next;
+                free(cur);
+                cur = prev;
+            }
+            update(*head);
+            return true;
+        }
+        prev = cur;
+        cur = cur->next;
+    }
+    return false;
+}
+
+void cleanup(Block *head) {
+    while (head) {
+        Block *tmp = head;
+        head = head->next;
+        free(tmp);
+    }
+}
+
+int main() {
+    int mem_size, blocks, ch, *sizes, size, addr;
+    char mode;
+
+    printf("Mem Size Blocks: ");
+    scanf("%d %d", &mem_size, &blocks);
+
+    sizes = malloc(sizeof(int) * blocks);
+    for (int i = 0; i < blocks; i++) scanf("%d", &sizes[i]);
+
+    for (int i = 0; i < blocks; i++) {
+        Block *b = create(sizes[i], true);
+        if (!mem) mem = b;
+        else {
+            Block *last = mem;
+            while (last->next) last = last->next;
+            last->next = b;
+        }
+    }
+    update(mem);
+    free(sizes);
+
+    printf("Method (F/B/W/N): ");
+    scanf(" %c", &mode);
+
+    while (1) {
+        printf("\n1:Alloc 2:Free 3:Show 0:Exit > ");
+        scanf("%d", &ch);
+        if (ch == 0) break;
+        if (ch == 1) {
+            scanf("%d", &size);
+            addr = alloc(&mem, size, mode);
+            printf(addr == -1 ? "Fail\n" : "At %d\n", addr);
+        } else if (ch == 2) {
+            scanf("%d", &addr);
+            printf(dealloc(&mem, addr) ? "Freed\n" : "Invalid\n");
+        } else if (ch == 3) {
+            show(mem);
+        }
+    }
+    cleanup(mem);
+    return 0;
+}
+
+
+######################################## 7 ################################################
+
+#include <stdio.h>
+#include <stdbool.h>
+bool is_page_present(int frames[], int capacity, int page) {
+    for (int i = 0; i < capacity; i++) {
+        if (frames[i] == page) return true;
+    }
+    return false;
+}
+void print_frames(int frames[], int capacity, int page, bool page_fault) {
+    printf("Reference: %d | Frames: ", page);
+    for (int i = 0; i < capacity; i++) {
+        printf("%d ", frames[i]);
+    }
+    printf("\t");
+    printf("| Page Fault: %s\n", page_fault ? "Yes" : "No");
+}
+int run_algorithm(int reference_string[], int n, int capacity, char* name,
+                  void (*replace_page)(int frames[], int capacity, int page, int reference_string[], int n)) {
+    int frames[capacity];
+    for (int i = 0; i < capacity; i++) {
+        frames[i] = -1;
+    }
+    printf("%s Page Replacement:\n", name);
+    int page_faults = 0;
+    for (int i = 0; i < n; i++) {
+        bool page_fault = !is_page_present(frames, capacity, reference_string[i]);
+        if (page_fault) {
+            page_faults++;
+            replace_page(frames, capacity, reference_string[i], reference_string, n);
+        }
+        print_frames(frames, capacity, reference_string[i], page_fault);
+    }
+    return page_faults;
+}
+void replace_page_fcfs(int frames[], int capacity, int page, int reference_string[], int n) {
+    static int frame_index = 0;
+    frames[frame_index] = page;
+    frame_index = (frame_index + 1) % capacity;
+}
+void replace_page_lru(int frames[], int capacity, int page, int reference_string[], int n) {
+    static int time[10];
+    static int current_time = 0;
+    for (int i = 0; i < capacity; i++) {
+        if (frames[i] == -1) {
+            frames[i] = page;
+            time[i] = ++current_time;
+            return;
+        }
+    }
+    int lru_index = 0;
+    for (int i = 1; i < capacity; i++) {
+        if (time[i] < time[lru_index]) lru_index = i;
+    }
+    frames[lru_index] = page;
+    time[lru_index] = ++current_time;
+}
+void replace_page_optimal(int frames[], int capacity, int page, int reference_string[], int n) {
+    for (int i = 0; i < capacity; i++) {
+        if (frames[i] == -1) {
+            frames[i] = page;
+            return;
+        }
+    }
+    int farthest = -1;
+    int replace_index = -1;
+    for (int i = 0; i < capacity; i++) {
+        bool found = false;
+        for (int j = n + 1; j < n; j++) {
+            if (frames[i] == reference_string[j]) {
+                if (j > farthest) {
+                    farthest = j;
+                    replace_index = i;
+                }
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            replace_index = i;
+            break;
+        }
+    }
+    if (replace_index == -1) replace_index = 0;
+    frames[replace_index] = page;
+}
+int main() {
+    int reference_string[] = {7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3};
+    const size_t n = sizeof(reference_string) / sizeof(reference_string[0]);
+    int capacity = 3;
+    int fcfs_faults = run_algorithm(reference_string, n, capacity, "FCFS", replace_page_fcfs);
+    printf("\nFCFS Total Page Faults: %d\n", fcfs_faults);
+    int lru_faults = run_algorithm(reference_string, n, capacity, "LRU", replace_page_lru);
+    printf("\nLRU Total Page Faults: %d\n", lru_faults);
+    int optimal_faults = run_algorithm(reference_string, n, capacity, "Optimal", replace_page_optimal);
+    printf("\nOptimal Total Page Faults: %d\n", optimal_faults);
+    return 0;
+}
+
+
+######################################## 8 ################################################
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+int abs_diff(int a, int b) {
+    return a > b ? a - b : b - a;
+}
+
+void fcfs(int req[], int n, int head) {
+    int total = 0;
+    printf("FCFS Seek Sequence: %d ", head);
+    for (int i = 0; i < n; i++) {
+        total += abs_diff(head, req[i]);
+        head = req[i];
+        printf("%d ", head);
+    }
+    printf("\nTotal Head Movement: %d\n", total);
+}
+
+void sstf(int req[], int n, int head) {
+    int total = 0, done = 0, min_idx, min_dist;
+    bool visited[n];
+    for (int i = 0; i < n; i++) visited[i] = false;
+
+    printf("SSTF Seek Sequence: %d ", head);
+    while (done < n) {
+        min_dist = 1e9;
+        for (int i = 0; i < n; i++) {
+            if (!visited[i] && abs_diff(head, req[i]) < min_dist) {
+                min_dist = abs_diff(head, req[i]);
+                min_idx = i;
+            }
+        }
+        total += min_dist;
+        head = req[min_idx];
+        visited[min_idx] = true;
+        printf("%d ", head);
+        done++;
+    }
+    printf("\nTotal Head Movement: %d\n", total);
+}
+
+void sort(int arr[], int n, bool asc) {
+    for (int i = 0; i < n-1; i++)
+        for (int j = 0; j < n-i-1; j++)
+            if ((asc && arr[j] > arr[j+1]) || (!asc && arr[j] < arr[j+1])) {
+                int t = arr[j]; arr[j] = arr[j+1]; arr[j+1] = t;
+            }
+}
+
+void scan(int req[], int n, int head, int size, char dir) {
+    int left[n], right[n], lc = 0, rc = 0, total = 0;
+    for (int i = 0; i < n; i++) 
+        if (req[i] < head)
+            left[lc++] = req[i];
+        else
+            right[rc++] = req[i];
+
+
+    sort(left, lc, false); sort(right, rc, true);
+    printf("SCAN Seek Sequence: %d ", head);
+    
+    int *first = (dir == 'l') ? left : right, fc = (dir == 'l') ? lc : rc;
+    int *second = (dir == 'l') ? right : left, sc = (dir == 'l') ? rc : lc;
+
+    for (int i = 0; i < fc; i++) {
+        total += abs_diff(head, first[i]);
+        head = first[i];
+        printf("%d ", head);
+    }
+
+    int end = (dir == 'l') ? 0 : size - 1;
+    total += abs_diff(head, end);
+    head = end;
+    printf("%d ", head);
+
+    for (int i = 0; i < sc; i++) {
+        total += abs_diff(head, second[i]);
+        head = second[i];
+        printf("%d ", head);
+    }
+
+    printf("\nTotal Head Movement: %d\n", total);
+}
+
+void c_scan(int req[], int n, int head, int size, char dir) {
+    int left[n], right[n], lc = 0, rc = 0, total = 0;
+    for (int i = 0; i < n; i++) 
+        if (req[i] < head)
+            left[lc++] = req[i];
+        else
+            right[rc++] = req[i];
+
+
+    sort(left, lc, false); sort(right, rc, true);
+    printf("C-SCAN Seek Sequence: %d ", head);
+
+    if (dir == 'l') {
+        for (int i = 0; i < lc; i++) {
+            total += abs_diff(head, left[i]);
+            head = left[i];
+            printf("%d ", head);
+        }
+        total += abs_diff(head, 0) + abs_diff(0, size - 1);
+        head = size - 1;
+        printf("0 %d ", size - 1);
+        for (int i = 0; i < rc; i++) {
+            total += abs_diff(head, right[i]);
+            head = right[i];
+            printf("%d ", head);
+        }
+    } else {
+        for (int i = 0; i < rc; i++) {
+            total += abs_diff(head, right[i]);
+            head = right[i];
+            printf("%d ", head);
+        }
+        total += abs_diff(head, size - 1) + abs_diff(0, size - 1);
+        head = 0;
+        printf("%d 0 ", size - 1);
+        for (int i = 0; i < lc; i++) {
+            total += abs_diff(head, left[i]);
+            head = left[i];
+            printf("%d ", head);
+        }
+    }
+
+    printf("\nTotal Head Movement: %d\n", total);
+}
+
+int main() {
+    int n, head, size, choice;
+    char dir;
+    printf("Enter number of requests: ");
+    scanf("%d", &n);
+    int req[n];
+    printf("Enter the requests:\n");
+    for (int i = 0; i < n; i++) scanf("%d", &req[i]);
+    printf("Enter initial head position: ");
+    scanf("%d", &head);
+    printf("Enter disk size: ");
+    scanf("%d", &size);
+    printf("Direction (l/r) for SCAN and C-SCAN: ");
+    scanf(" %c", &dir);
+
+    while (1) {
+        printf("\nMenu:\n1.FCFS\n2.SSTF\n3.SCAN\n4.C-SCAN\n5.Exit\nChoice: ");
+        scanf("%d", &choice);
+        switch (choice) {
+            case 1: fcfs(req, n, head); break;
+            case 2: sstf(req, n, head); break;
+            case 3: scan(req, n, head, size, dir); break;
+            case 4: c_scan(req, n, head, size, dir); break;
+            case 5: return 0;
+            default: printf("Invalid choice!\n");
+        }
+    }
+}
+########################################################################################

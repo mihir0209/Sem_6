@@ -1,190 +1,144 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-typedef struct MemoryBlock {
-    int start_address;
-    int size;
-    bool is_free;
-    struct MemoryBlock* next;
-} MemoryBlock;
-MemoryBlock* next_fit_pointer = NULL;
-MemoryBlock* createMemoryBlock(int start_address, int size, bool is_free) {
-    MemoryBlock* block = (MemoryBlock*)malloc(sizeof(MemoryBlock));
-    block->start_address = start_address;
-    block->size = size;
-    block->is_free = is_free;
-    block->next = NULL;
-    return block;
+
+typedef struct Block {
+    int start, size;
+    bool free;
+    struct Block *next;
+} Block;
+
+Block *mem = NULL, *next_fit_ptr = NULL;
+
+Block* create(int size, bool free) {
+    Block *b = malloc(sizeof(Block));
+    b->size = size; b->free = free; b->next = NULL; b->start = 0;
+    return b;
 }
-void updateStartAddresses(MemoryBlock* head) {
-    int address = 0;
+
+void update(Block *head) {
+    int addr = 0;
     while (head) {
-        head->start_address = address;
-        address += head->size;
+        head->start = addr;
+        addr += head->size;
         head = head->next;
     }
 }
-void displayMemory(MemoryBlock* head) {
-    printf("\n=== Memory Status ===\n");
-    while (head) {
-        printf("Start: %d | Size: %d | Free: %s\n",
-               head->start_address, head->size,
-               head->is_free ? "Yes" : "No");
-        head = head->next;
-    }
-    printf("=====================\n");
+
+void show(Block *head) {
+    puts("\nMemory:");
+    for (; head; head = head->next)
+        printf("%d %d %s\n", head->start, head->size, head->free ? "Free" : "Used");
 }
-int allocateMemory(MemoryBlock** head, int process_size, char method) {
-    MemoryBlock *selected = NULL, *current = *head, *start = NULL;
-    int selected_size = (method == 'B') ? __INT_MAX__ : -1;
-    if (method == 'N') {
-        if (!next_fit_pointer) next_fit_pointer = *head;
-        start = current = next_fit_pointer;
-    }
-    bool looped = false;
+
+int alloc(Block **head, int size, char mode) {
+    Block *sel = NULL, *cur = *head, *start = NULL;
+    int best = (mode == 'B') ? __INT_MAX__ : -1;
+    bool loop = false;
+
+    if (mode == 'N') start = cur = next_fit_ptr ? next_fit_ptr : *head;
+
     do {
-        if (current->is_free && current->size >= process_size) {
-            if (method == 'F') {
-                selected = current;
-                break;
-            } else if (method == 'B' && current->size < selected_size) {
-                selected = current;
-                selected_size = current->size;
-            } else if (method == 'W' && current->size > selected_size) {
-                selected = current;
-                selected_size = current->size;
-            } else if (method == 'N') {
-                selected = current;
-                break;
-            }
+        if (cur->free && cur->size >= size) {
+            if (mode == 'F') { sel = cur; break; }
+            if (mode == 'B' && cur->size < best) { sel = cur; best = cur->size; }
+            if (mode == 'W' && cur->size > best) { sel = cur; best = cur->size; }
+            if (mode == 'N') { sel = cur; break; }
         }
-        current = (method == 'N') ?
-                 (current->next ? current->next : *head) :
-                 current->next;
-        if (method == 'N' && current == start) looped = true;
-    } while ((method != 'N' && current) || (method == 'N' && !looped));
-    if (!selected) return -1;
-    int start_address = selected->start_address;
-    if (selected->size == process_size) {
-        selected->is_free = false;
-    } else {
-        MemoryBlock* new_block = createMemoryBlock(0, selected->size - process_size, true);
-        new_block->next = selected->next;
-        selected->next = new_block;
-        selected->size = process_size;
-        selected->is_free = false;
-        updateStartAddresses(*head);
+        cur = (mode == 'N') ? (cur->next ? cur->next : *head) : cur->next;
+        if (mode == 'N' && cur == start) loop = true;
+    } while ((mode != 'N' && cur) || (mode == 'N' && !loop));
+
+    if (!sel) return -1;
+
+    int addr = sel->start;
+    if (sel->size == size) sel->free = false;
+    else {
+        Block *b = create(sel->size - size, true);
+        b->next = sel->next;
+        sel->next = b;
+        sel->size = size;
+        sel->free = false;
+        update(*head);
     }
-    if (method == 'N') {
-        next_fit_pointer = selected->next ? selected->next : *head;
-    }
-    return start_address;
+    if (mode == 'N') next_fit_ptr = sel->next ? sel->next : *head;
+    return addr;
 }
-bool freeBlock(MemoryBlock** head, int start_address) {
-    MemoryBlock *current = *head, *prev = NULL;
-    while (current) {
-        if (current->start_address == start_address) {
-            current->is_free = true;
-            if (current->next && current->next->is_free) {
-                MemoryBlock* temp = current->next;
-                current->size += temp->size;
-                current->next = temp->next;
-                free(temp);
+
+bool dealloc(Block **head, int addr) {
+    Block *cur = *head, *prev = NULL;
+    while (cur) {
+        if (cur->start == addr) {
+            cur->free = true;
+            if (cur->next && cur->next->free) {
+                Block *t = cur->next;
+                cur->size += t->size;
+                cur->next = t->next;
+                free(t);
             }
-            if (prev && prev->is_free) {
-                prev->size += current->size;
-                prev->next = current->next;
-                free(current);
-                current = prev;
+            if (prev && prev->free) {
+                prev->size += cur->size;
+                prev->next = cur->next;
+                free(cur);
+                cur = prev;
             }
-            updateStartAddresses(*head);
+            update(*head);
             return true;
         }
-        prev = current;
-        current = current->next;
+        prev = cur;
+        cur = cur->next;
     }
     return false;
 }
-void deallocateAll(MemoryBlock* head) {
+
+void cleanup(Block *head) {
     while (head) {
-        MemoryBlock* temp = head;
+        Block *tmp = head;
         head = head->next;
-        free(temp);
+        free(tmp);
     }
 }
+
 int main() {
-    int total_memory, num_blocks, method_choice;
-    char method_char;
-    printf("Enter total memory size: ");
-    scanf("%d", &total_memory);
-    printf("Enter number of free blocks: ");
-    scanf("%d", &num_blocks);
-    int* block_sizes = (int*)malloc(num_blocks * sizeof(int));
-    printf("Enter sizes of the %d free blocks:\n", num_blocks);
-    for (int i = 0; i < num_blocks; i++) {
-        printf("Block %d: ", i + 1);
-        scanf("%d", &block_sizes[i]);
-    }
-    MemoryBlock *memory = NULL, *last = NULL;
-    for (int i = 0; i < num_blocks; i++) {
-        MemoryBlock* block = createMemoryBlock(0, block_sizes[i], true);
-        if (!memory) {
-            memory = block;
-            last = block;
-        } else {
-            last->next = block;
-            last = block;
+    int mem_size, blocks, ch, *sizes, size, addr;
+    char mode;
+
+    printf("Mem Size Blocks: ");
+    scanf("%d %d", &mem_size, &blocks);
+
+    sizes = malloc(sizeof(int) * blocks);
+    for (int i = 0; i < blocks; i++) scanf("%d", &sizes[i]);
+
+    for (int i = 0; i < blocks; i++) {
+        Block *b = create(sizes[i], true);
+        if (!mem) mem = b;
+        else {
+            Block *last = mem;
+            while (last->next) last = last->next;
+            last->next = b;
         }
     }
-    updateStartAddresses(memory);
-    free(block_sizes);
-    printf("\nChoose allocation method:\n");
-    printf("1. First Fit\n2. Best Fit\n3. Worst Fit\n4. Next Fit\n");
-    printf("Enter choice: ");
-    scanf("%d", &method_choice);
-    switch (method_choice) {
-        case 1: method_char = 'F'; break;
-        case 2: method_char = 'B'; break;
-        case 3: method_char = 'W'; break;
-        case 4: method_char = 'N'; break;
-        default: printf("Invalid method\n"); return 1;
-    }
-    int choice;
+    update(mem);
+    free(sizes);
+
+    printf("Method (F/B/W/N): ");
+    scanf(" %c", &mode);
+
     while (1) {
-        printf("\n=== Menu ===\n");
-        printf("1. Allocate process\n");
-        printf("2. Free memory block\n");
-        printf("3. Display memory\n");
-        printf("0. Exit\n");
-        printf("Enter choice: ");
-        scanf("%d", &choice);
-        if (choice == 0) break;
-        int size, addr;
-        switch (choice) {
-            case 1:
-                printf("Enter process size to allocate: ");
-                scanf("%d", &size);
-                addr = allocateMemory(&memory, size, method_char);
-                if (addr == -1)
-                    printf("Allocation failed: Not enough memory.\n");
-                else
-                    printf("Process allocated at address %d\n", addr);
-                break;
-            case 2:
-                printf("Enter start address of block to free: ");
-                scanf("%d", &addr);
-                if (freeBlock(&memory, addr))
-                    printf("Freed memory block at address %d\n", addr);
-                else
-                    printf("Invalid address or already free.\n");
-                break;
-            case 3:
-                displayMemory(memory);
-                break;
-            default:
-                printf("Invalid option.\n");
+        printf("\n1:Alloc 2:Free 3:Show 0:Exit > ");
+        scanf("%d", &ch);
+        if (ch == 0) break;
+        if (ch == 1) {
+            scanf("%d", &size);
+            addr = alloc(&mem, size, mode);
+            printf(addr == -1 ? "Fail\n" : "At %d\n", addr);
+        } else if (ch == 2) {
+            scanf("%d", &addr);
+            printf(dealloc(&mem, addr) ? "Freed\n" : "Invalid\n");
+        } else if (ch == 3) {
+            show(mem);
         }
     }
-    deallocateAll(memory);
+    cleanup(mem);
     return 0;
 }
